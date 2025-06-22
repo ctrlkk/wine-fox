@@ -1,8 +1,21 @@
 {
   "name": "wine-fox",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@8.15.3",
+  "description": "酒狐哦",
+  "author": "2870245624@qq.com",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ctrlkk/wine-fox.git"
+  },
+  "keywords": [
+    "three.js",
+    "graphics",
+    "animation",
+    "酒狐"
+  ],
   "main": "dist/index.js",
   "scripts": {
     "build": "tsup",
