@@ -7,7 +7,8 @@
 Wine Fox depends on [three](https://www.npmjs.com/package/three) and [lodash](https://www.npmjs.com/package/lodash) (optional, used in some examples).
 
 ```bash
-pnpm install three lodash
+pnpm install three lodash wine-fox
+pnpm install -D  @types/three @types/lodash
 ```
 
 ## Usage

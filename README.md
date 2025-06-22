@@ -9,7 +9,8 @@
 酒狐依赖 [three](https://www.npmjs.com/package/three) 和 [lodash](https://www.npmjs.com/package/lodash)（可选，部分示例中使用）。
 
 ```bash
-pnpm install three lodash
+pnpm install three lodash wine-fox
+pnpm install -D  @types/three @types/lodash
 ```
 
 ## 使用方式
