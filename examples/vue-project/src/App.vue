@@ -20,8 +20,8 @@ onMounted(() => {
     }
 
     const onMouseMove = (e: MouseEvent) => {
-      mouse.x = e.clientX
-      mouse.y = e.clientY
+      mouse.x = e.screenX
+      mouse.y = e.screenY
     }
 
     const onResize = debounce(() => {
