@@ -1,7 +1,7 @@
 {
   "name": "wine-fox",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packageManager": "pnpm@8.15.3",
   "description": "酒狐哦",
   "author": "2870245624@qq.com",
@@ -17,6 +17,10 @@
     "酒狐"
   ],
   "main": "dist/index.js",
+  "files": [
+    "README.md",
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "pnpm build --watch --onSuccess=\"pnpm --filter vite dev\""
