@@ -30,6 +30,11 @@ pnpm install -D  @types/three @types/lodash
 
 [examples/vue-project/src/App.vue](examples/vue-project/src/App.vue)
 
+## License
+
+驱动`wine-fox`的代码为[MIT license](https://opensource.org/licenses/MIT)许可。
+`wine-fox`模型的许可证为[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/40/deed.en)，她来自[Yes Steve Model](https://modrinth.com/mod/yes-steve-model)。
+
 ---
 
 如有问题或建议，欢迎提交 issue 或 PR。
