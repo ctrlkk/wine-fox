@@ -2,6 +2,8 @@
 
 [简体中文](README.md) | [English](docs/README_EN.md)
 
+[![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fctrlkk%2Fwine-fox&countColor=%232ccce4&style=flat)](https://visitorbadge.io/status?path=https%3A%2F%2Fgithub.com%2Fctrlkk%2Fwine-fox)
+
 ![酒狐](docs/assets/PixPin_2025-06-22_19-12-34.webp)
 
 ## 安装依赖
