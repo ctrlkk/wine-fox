@@ -1,71 +1,52 @@
 <script setup lang="ts">
 import { debounce } from 'lodash'
 import { Clock } from 'three'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, useTemplateRef } from 'vue'
 import { KanbanGirl } from 'wine-fox'
+import { urls } from 'wine-fox/assets'
+import { withFrameRateLimit } from 'wine-fox/tools'
 import HelloWorld from './components/HelloWorld.vue'
 
-const container = ref<HTMLDivElement>()
+const container = useTemplateRef('container')
 
-let destroy = () => {}
+const mouse = {
+  x: 0,
+  y: 0,
+}
+function onMouseMove(e: MouseEvent) {
+  mouse.x = e.screenX
+  mouse.y = e.screenY
+}
+window.addEventListener('mousemove', onMouseMove)
 
-onMounted(() => {
-  // 推荐使用闭包防止意外的内存泄漏
-  (async () => {
-    let kanbanGirl: KanbanGirl
-    let animationFrameId: number
-    const mouse = {
-      x: 0,
-      y: 0,
-    }
+let dispose = () => {}
 
-    const onMouseMove = (e: MouseEvent) => {
-      mouse.x = e.screenX
-      mouse.y = e.screenY
-    }
+onMounted(async () => {
+  const clock = new Clock()
+  const model = new KanbanGirl(container.value!)
+  await model.load(urls)
 
-    const onResize = debounce(() => {
-      kanbanGirl.resize()
-    }, 500)
+  const limit = withFrameRateLimit(60)(() => {
+    model.update(clock.getDelta())
+    model.lookAt(mouse)
+  })
+  limit.start()
 
-    const animate = (() => {
-      let lastTime = 0
-      const clock = new Clock()
-      return function (timestamp: number) {
-      // 限制60hz刷新率
-        const frameInterval = 1000 / 60
-        animationFrameId = requestAnimationFrame(animate)
-        const delta = timestamp - lastTime
+  const onResize = debounce(() => {
+    model.resize()
+  }, 500)
+  window.addEventListener('resize', onResize)
 
-        if (delta >= frameInterval) {
-        // 更新酒狐模型
-          kanbanGirl.update(timestamp, clock.getDelta())
-          // 让酒狐看向鼠标位置
-          kanbanGirl.lookAt(mouse)
-          lastTime = timestamp - (delta % frameInterval)
-        }
-      }
-    })()
-    // 创建酒狐实例并在动画循环中更新
-    kanbanGirl = new KanbanGirl(container.value!)
-    animationFrameId = requestAnimationFrame(animate)
-    // 加载主模型
-    const mainModel = await kanbanGirl.load()
-
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('resize', onResize)
-    destroy = () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('resize', onResize)
-      mainModel.dispose()
-      cancelAnimationFrame(animationFrameId)
-    }
-  })()
+  dispose = () => {
+    limit.stop()
+    model.dispose()
+    window.removeEventListener('resize', onResize)
+  }
 })
 
 onUnmounted(() => {
-  // 组件销毁时调用销毁函数
-  destroy()
+  dispose()
+  window.removeEventListener('mousemove', onMouseMove)
 })
 </script>
 

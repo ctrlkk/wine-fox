@@ -5,13 +5,12 @@ import type { MainModel } from './model-object.ts'
 import * as TWEEN from '@tweenjs/tween.js'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { waitAnimationEnd } from './animation-tools'
-import { waitFadeEnd } from './tools'
+import { waitAnimationEnd, waitFadeEnd } from './tools'
 
 async function initSlashBlade(mainModel: MainModel, gui: GUI) {
-  const animation1 = mainModel.tools.animation.getAnimationByName('slashblade:sneaking') as THREE.AnimationAction
-  const animation2 = mainModel.tools.animation.getAnimationByName('slashblade:combo_a4ex') as THREE.AnimationAction
-  const idle = mainModel.tools.animation.getAnimationByName('slashblade:idle') as THREE.AnimationAction
+  const animation1 = mainModel.animationsManage.get('slashblade:sneaking') as THREE.AnimationAction
+  const animation2 = mainModel.animationsManage.get('slashblade:combo_a4ex') as THREE.AnimationAction
+  const idle = mainModel.animationsManage.get('slashblade:idle') as THREE.AnimationAction
 
   // 拔刀剑刀身定位组
   const bladeLocator = mainModel.object3d.getObjectByName('BladeLocator')

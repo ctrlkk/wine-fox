@@ -1,220 +1,190 @@
-import type { GLTF } from 'three/addons/loaders/GLTFLoader.js'
-import * as TWEEN from '@tweenjs/tween.js'
-import { BloomEffect, ColorDepthEffect, EffectComposer, EffectPass, FXAAEffect, GodRaysEffect, RenderPass, SMAAEffect } from 'postprocessing'
+import { BloomEffect, ColorDepthEffect, EffectComposer, EffectPass, FXAAEffect, GodRaysEffect, RenderPass } from 'postprocessing'
 import * as THREE from 'three'
 import { InteractionManager } from 'three.interactive'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { getScreenPositionAndSize } from './animation-tools.js'
-import { KanBanGirlModel, TorchModel } from './loader.js'
-import { MainModel, Torch } from './model-object.js'
-import './three-interactive.d'
+import { Apple, MainModel, Torch } from './model-object'
 
-class KanbanGirlRenderer {
-  container: HTMLElement
-  scene: THREE.Scene
-  // 相机
-  camera: THREE.PerspectiveCamera
-  // 渲染器
-  renderer: THREE.WebGLRenderer
-  // 后期处理器
-  composer: EffectComposer
+import { createModelFromImage, getScreenPositionAndSize, loader } from './tools'
 
-  config = {
-    // 渲染倍率
-    renderScale: 1.5,
-    // 抗锯齿类型
-    currentAntiAliasing: 'SMAA',
-  }
+export interface Models {
+  apple?: Apple
+  wineFox?: MainModel
+  torch?: Torch
+}
 
-  constructor(container: HTMLElement, scene: THREE.Scene) {
+interface Assets {
+  apple: string
+  wineFox: string
+  torch: string
+}
+
+export class KanbanGirl {
+  private container: HTMLDivElement
+  private scene: THREE.Scene
+  private camera: THREE.PerspectiveCamera
+  private renderer: THREE.WebGLRenderer
+  private composer: EffectComposer | undefined
+  private interactionManager: InteractionManager | undefined
+  private controls: OrbitControls | undefined
+  private mainModel: MainModel | undefined
+  private models: Models = {}
+  private ambient: THREE.AmbientLight
+
+  constructor(container: HTMLDivElement) {
     this.container = container
-    this.scene = scene
-    this.camera = this.initCamera(container)
-    this.renderer = this.initRenderer(container)
-    this.composer = this.initComposer(scene, this.camera, this.renderer)
-    this.antiAliasing(this.composer, this.camera)
-  }
-
-  render(deltaTime: number) {
-    this.renderer.render(this.scene, this.camera)
-    this.composer.render(deltaTime)
-  }
-
-  dispose() {
-    this.renderer.dispose()
-    this.composer.dispose()
-  }
-
-  resize() {
-    const { clientWidth, clientHeight } = this.container
-    this.camera.aspect = clientWidth / clientHeight
-    this.camera.updateProjectionMatrix()
-    this.renderer.setSize(clientWidth, clientHeight)
-    this.renderer.setPixelRatio(
-      window.devicePixelRatio * this.config.renderScale,
-    )
-  }
-
-  // 初始化相机
-  initCamera(threeContainer: HTMLElement): THREE.PerspectiveCamera {
-    const aspect = threeContainer.clientWidth / threeContainer.clientHeight
-    const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 3000)
-    camera.position.set(0, 0, 5)
-    camera.lookAt(0, 0, 0)
-    return camera
-  }
-
-  // 初始化渲染器
-  initRenderer(threeContainer: HTMLElement): THREE.WebGLRenderer {
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
+    this.scene = new THREE.Scene()
+    this.camera = new THREE.PerspectiveCamera()
+    this.camera.position.z = 80
+    this.renderer = new THREE.WebGLRenderer({
       alpha: true,
     })
-    renderer.setPixelRatio(window.devicePixelRatio * this.config.renderScale)
-    renderer.setSize(threeContainer.clientWidth, threeContainer.clientHeight)
-    threeContainer.appendChild(renderer.domElement)
-    // 启用阴影
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    return renderer
-  }
+    this.renderer.setPixelRatio(window.devicePixelRatio * 1)
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight)
+    this.container.appendChild(this.renderer.domElement)
 
-  antiAliasing(composer: EffectComposer, camera: THREE.Camera) {
-    if (this.config.currentAntiAliasing === 'SMAA') {
-      composer.addPass(new EffectPass(camera, new SMAAEffect()))
-    }
-    if (this.config.currentAntiAliasing === 'FXAA') {
-      composer.addPass(new EffectPass(camera, new FXAAEffect()))
-    }
-  }
-
-  // 初始化后期处理器
-  initComposer(
-    scene: THREE.Scene,
-    camera: THREE.PerspectiveCamera,
-    renderer: THREE.WebGLRenderer,
-  ) {
-    const composer = new EffectComposer(renderer)
-    composer.addPass(new RenderPass(scene, camera))
-    // 创建 Bloom 效果
+    this.composer = new EffectComposer(this.renderer)
+    this.composer.addPass(new RenderPass(this.scene, this.camera))
+    this.composer.addPass(new EffectPass(this.camera, new FXAAEffect()))
     const bloomEffect = new BloomEffect({
       intensity: 0.3,
       luminanceSmoothing: 0.03,
       luminanceThreshold: 0.9,
       radius: 1,
     })
-    // 色深
     const colorDepthEffect = new ColorDepthEffect()
-    const effect = new EffectPass(camera, bloomEffect, colorDepthEffect)
-    composer.addPass(effect)
-    return composer
-  }
-}
+    const effectPass = new EffectPass(this.camera, bloomEffect, colorDepthEffect)
+    this.composer.addPass(effectPass)
 
-type Theme = 'dark' | 'light'
+    this.interactionManager = new InteractionManager(this.renderer, this.camera, this.container)
+    this.controls = new OrbitControls(this.camera, this.container)
 
-class KanbanGirl {
-  // 场景
-  scene: THREE.Scene
-  // 控制器
-  controls: OrbitControls
-  // 交互控制器
-  interactionManager: InteractionManager
-  // 渲染器
-  renderer: KanbanGirlRenderer
-  light!: {
-    ambientLight: THREE.AmbientLight
-    directionalLight: THREE.DirectionalLight
-  }
-
-  mainModel?: MainModel
-  config = {
-    // 阴影质量
-    shadowSize: new THREE.Vector2(1024, 1024),
-    // 全局光照设置
-    ambientLight: {
-      // 强度
-      intensity: 0.3,
-    },
-  }
-
-  protected theme: Theme = 'light'
-  protected clock = new THREE.Clock()
-
-  constructor(container: HTMLElement) {
-    this.scene = new THREE.Scene()
-    this.renderer = new KanbanGirlRenderer(container, this.scene)
-    this.controls = this.initControls(
-      this.renderer.camera,
-      this.renderer.renderer,
-    )
-    this.controls.dispose()
-    this.interactionManager = new InteractionManager(
-      this.renderer.renderer,
-      this.renderer.camera,
-      container,
-    )
-    this.buildLight(this.config.ambientLight)
-    this.scene.add(this.light.ambientLight)
+    this.ambient = new THREE.AmbientLight(0xFFFFFF)
+    this.scene.add(this.ambient)
     this.setTheme('light')
+    this.resize()
   }
 
-  update(timestamp: number, deltaTime: number) {
-    this.renderer.render(deltaTime)
-    this.controls.update(deltaTime)
-    this.interactionManager.update()
-    this.mainModel?.update(deltaTime)
-    TWEEN.update(timestamp)
+  async load(assets: Assets) {
+    Promise.all([loader.loadAsync(assets.wineFox), createModelFromImage(assets.apple), loader.loadAsync(assets.torch)])
+      .then(([gltf1, gltf2, gltf3]) => {
+        gltf1.scene.rotateY(Math.PI)
+        this.mainModel = new MainModel(gltf1.scene, gltf1.animations)
+        this.mainModel.object3d.scale.set(20, 20, 20)
+        const box = new THREE.Box3().setFromObject(this.mainModel.object3d)
+        const size = box.getSize(new THREE.Vector3())
+        this.mainModel.object3d.position.y = -size.y / 2
+        this.scene.add(this.mainModel.object3d)
+        this.interactionManager?.add(this.mainModel.object3d)
+        this.mainModel.object3d.scale.set(20, 20, 20)
+
+        gltf2.scale.set(0.03, 0.03, 0.03)
+        gltf2.rotateX(Math.PI * -0.5)
+        gltf2.position.setZ(-0.2)
+        const apple = new Apple(gltf2, this.mainModel!)
+        this.mainModel?.leftHand.add(apple)
+        // apple.animations.eat().play()
+
+        this.models.wineFox = this.mainModel
+        this.models.apple = apple
+
+        gltf3.scene.rotateX(Math.PI * 1.5)
+        this.models.torch = new Torch(gltf3.scene, this.mainModel)
+        const light = new THREE.PointLight(0xFFA500, 1000)
+        this.models.torch.object3d.getObjectByName('fire')?.add(light)
+        this.models.torch.object3d.getObjectByName('fire')?.traverse((child: THREE.Object3D<THREE.Object3DEventMap>) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh
+            const material = mesh.material as THREE.MeshStandardMaterial
+            material.emissive = new THREE.Color(0xFFA500)
+            material.emissiveIntensity = 0.5
+            const effect = new EffectPass(
+              this.camera,
+              new GodRaysEffect(this.camera, mesh),
+            )
+            this.composer?.addPass(effect)
+          }
+        })
+      })
+  }
+
+  getThreeInfo() {
+    return {
+      scene: this.scene,
+      camera: this.camera,
+      renderer: this.renderer,
+      composer: this.composer,
+    }
   }
 
   /**
-   * 释放资源
+   * 更新渲染和交互状态
+   * @param deltaTime 渲染间隔时间，用于动画和交互的时间更新
+   */
+  update(deltaTime: number) {
+    this.renderer.render(this.scene, this.camera)
+    this.composer?.render(deltaTime)
+    this.interactionManager?.update()
+    this.controls?.update(deltaTime)
+    this.mainModel?.update(deltaTime)
+  }
+
+  /**
+   * 销毁组件
    */
   dispose() {
     this.renderer.dispose()
-    this.controls.dispose()
-    this.interactionManager.dispose()
+    this.composer?.dispose()
+    this.composer?.dispose()
+    this.interactionManager?.dispose()
+    this.controls?.dispose()
     this.mainModel?.dispose()
   }
 
+  /**
+   * 重新调整渲染器和相机的尺寸
+   */
   resize() {
-    this.renderer.resize()
+    this.camera.aspect = this.container.clientWidth / this.container.clientHeight
+    this.camera.updateProjectionMatrix()
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight)
   }
 
-  private themeDispose = () => {}
-
-  async setTheme(theme: Theme) {
-    this.theme = theme
-    this.themeDispose()
-    if (this.theme === 'dark') {
-      this.scene.remove(this.light.directionalLight)
-      const { torch, godRaysEffevt } = await this.initTorchModel(this.renderer)
-      this.renderer.composer.addPass(godRaysEffevt)
-      this.mainModel?.leftHand.add(torch)
-      this.themeDispose = () => {
-        this.renderer.composer.removePass(godRaysEffevt)
-        this.mainModel?.leftHand.remove(torch)
+  /**
+   * 设置场景主题
+   * @param theme 主题类型
+   *
+   * 根据传入的主题参数，调整场景中的光照等元素。
+   */
+  setTheme(theme: 'dark' | 'light' = 'light') {
+    switch (theme) {
+      case 'dark': {
+        this.ambient.intensity = 0
+        this.mainModel?.leftHand.add(this.models.torch!)
+        break
       }
-    }
-    if (this.theme === 'light') {
-      this.scene.add(this.light.directionalLight)
+      case 'light': {
+        this.ambient.intensity = 2
+        break
+      }
     }
   }
 
   /**
-   * 3D空间看向屏幕空间的某一个点
+   * 使模型看向屏幕空间中的某一个点
+   * @param position 屏幕空间中的目标点坐标，包含x和y属性
+   * @param position.x x坐标
+   * @param position.y y坐标
    */
   lookAt(position: { x: number, y: number }) {
     if (!this.mainModel)
       return
     const headModel = this.mainModel.head.object3d
-    const camera = this.renderer.camera
-    const renderer = this.renderer.renderer
+    const camera = this.camera
+    const renderer = this.renderer
     const MAX_ANGLE = 0.3 // 最大旋转角度
     const ROTATION_SPEED = 0.05 // 每秒旋转速度
 
-    let { screenX, screenY, pixelWidth, pixelHeight }
-      = getScreenPositionAndSize(headModel, camera, renderer)
+    let { screenX, screenY, pixelWidth, pixelHeight } = getScreenPositionAndSize(headModel, camera, renderer)
     screenX += window.screenX
     screenY += window.screenY
 
@@ -244,100 +214,4 @@ class KanbanGirl {
     )
     return { pixelHeight, pixelWidth }
   }
-
-  async load() {
-    const mainModel = await this.initMainModel()
-    mainModel.object3d.position.y = -2
-    mainModel.object3d.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        child.castShadow = true
-        child.receiveShadow = false
-        const mesh = child as THREE.Mesh
-        const material = mesh.material as THREE.MeshStandardMaterial
-        material.emissiveMap = material.map
-        material.emissive = new THREE.Color(0xFFFFFF)
-        material.emissiveIntensity = 0.1
-        material.toneMapped = false
-      }
-    })
-    this.scene.add(mainModel.object3d)
-    this.mainModel = mainModel
-    this.interactionManager.add(mainModel.object3d)
-    return mainModel
-  }
-
-  /**
-   * 创建灯光资源
-   */
-  private buildLight(ambient: { intensity: number }) {
-    const ambientLight = new THREE.AmbientLight(0xFFFFFF, ambient.intensity)
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2)
-    directionalLight.position.set(0, 10, 10)
-    directionalLight.castShadow = true
-    directionalLight.shadow.mapSize = this.config.shadowSize
-    this.light = {
-      ambientLight,
-      directionalLight,
-    }
-  }
-
-  private initControls(
-    camera: THREE.PerspectiveCamera,
-    renderer: THREE.WebGLRenderer,
-  ): OrbitControls {
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.05
-    controls.screenSpacePanning = true
-    controls.minDistance = 1
-    controls.maxDistance = 50
-    controls.maxPolarAngle = Math.PI / 2
-    return controls
-  }
-
-  private async initMainModel() {
-    const kanBanGirlModel = new KanBanGirlModel()
-    const kanBanGirlGltf: GLTF = await kanBanGirlModel.load()
-    const mainModel = new MainModel(
-      kanBanGirlGltf.scene,
-      kanBanGirlGltf.animations,
-    )
-    return mainModel
-  }
-
-  private async initTorchModel(renderer: KanbanGirlRenderer) {
-    if (!this.mainModel)
-      throw new Error('mainModel is not loaded')
-
-    const torchModel = new TorchModel()
-    const torchGltf: GLTF = await torchModel.load()
-    torchGltf.scene.rotateX(Math.PI * 1.5)
-
-    const fire = torchGltf.scene.getObjectByName('fire') as THREE.Object3D
-    const torchLight = new THREE.PointLight(0xFFA500, 2, 5)
-    torchLight.decay = torchLight.intensity / torchLight.distance
-    torchLight.castShadow = true
-    fire.add(torchLight)
-
-    let godRaysEffevt!: EffectPass
-    fire.traverse((child: THREE.Object3D<THREE.Object3DEventMap>) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh
-        const material = mesh.material as THREE.MeshStandardMaterial
-        material.emissive = new THREE.Color(0xFFA500)
-        material.emissiveIntensity = 0.5
-        godRaysEffevt = new EffectPass(
-          renderer.camera,
-          new GodRaysEffect(renderer.camera, mesh),
-        )
-      }
-    })
-    const torch = new Torch(torchGltf.scene, this.mainModel.tools.animation)
-    return {
-      torch,
-      godRaysEffevt,
-    }
-  }
 }
-
-export { KanbanGirl }

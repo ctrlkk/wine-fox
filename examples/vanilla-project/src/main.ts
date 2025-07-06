@@ -1,6 +1,8 @@
 import { debounce } from 'lodash'
-import { Clock } from 'three'
+import * as THREE from 'three'
 import { KanbanGirl } from 'wine-fox'
+import { urls } from 'wine-fox/assets'
+import { withFrameRateLimit } from 'wine-fox/tools'
 import { setupCounter } from './counter.ts'
 import typescriptLogo from './typescript.svg'
 import './style.css'
@@ -25,59 +27,44 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </div>
 `
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!);
+setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
 
-// 推荐使用闭包防止意外的内存泄漏
-(async () => {
-  let kanbanGirl: KanbanGirl
-  let animationFrameId: number
+;(async () => {
   const mouse = {
     x: 0,
     y: 0,
   }
-
   const onMouseMove = (e: MouseEvent) => {
     mouse.x = e.screenX
     mouse.y = e.screenY
   }
-
-  const onResize = debounce(() => {
-    kanbanGirl.resize()
-  }, 500)
-
-  const animate = (() => {
-    let lastTime = 0
-    const clock = new Clock()
-    return function (timestamp: number) {
-      // 限制60hz刷新率
-      const frameInterval = 1000 / 60
-      animationFrameId = requestAnimationFrame(animate)
-      const delta = timestamp - lastTime
-
-      if (delta >= frameInterval) {
-        // 更新酒狐模型
-        kanbanGirl.update(timestamp, clock.getDelta())
-        // 让酒狐看向鼠标位置
-        kanbanGirl.lookAt(mouse)
-        lastTime = timestamp - (delta % frameInterval)
-      }
-    }
-  })()
-  // 创建酒狐实例并在动画循环中更新
-  kanbanGirl = new KanbanGirl(document.querySelector<HTMLDivElement>('#container')!)
-  animationFrameId = requestAnimationFrame(animate)
-  // 加载主模型
-  const mainModel = await kanbanGirl.load()
-
   window.addEventListener('mousemove', onMouseMove)
+
+  // 创建KanbanGirl实例，此时会初始化场景
+  const model = new KanbanGirl(document.querySelector('#container')!)
+  // 在这里才会加载所需要的模型资源
+  await model.load(urls)
+  const clock = new THREE.Clock()
+  // withFrameRateLimit函数可以限制帧率，避免资源浪费
+  const limit = withFrameRateLimit(60)(() => {
+    // 更新场景
+    model.update(clock.getDelta())
+    // 让模型看向鼠标的位置
+    model.lookAt(mouse)
+  })
+  limit.start()
+
+  // 如果需要重新调整画布
+  const onResize = debounce(() => {
+    model.resize()
+  }, 500)
   window.addEventListener('resize', onResize)
-  const destroy = () => {
-    window.removeEventListener('mousemove', onMouseMove)
+
+  // 在页面卸载前释放资源
+  window.addEventListener('beforeunload', () => {
+    limit.stop()
+    model.dispose()
     window.removeEventListener('resize', onResize)
-    window.removeEventListener('beforeunload', destroy)
-    mainModel.dispose()
-    cancelAnimationFrame(animationFrameId)
-  }
-  // 销毁事件监听器和模型
-  window.addEventListener('beforeunload', destroy)
+    window.removeEventListener('mousemove', onMouseMove)
+  })
 })()

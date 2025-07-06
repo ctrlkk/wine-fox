@@ -1,8 +1,7 @@
 import type { AnimationAction } from 'three'
 import type { MainModel } from './model-object'
 import { LoopRepeat } from 'three'
-import { waitAnimationEnd } from './animation-tools'
-import { waitFadeEnd } from './tools'
+import { waitAnimationEnd, waitFadeEnd } from './tools'
 
 interface Task {
   name: string
@@ -28,7 +27,7 @@ class TaskImpl implements Task {
     this.mainModel = mainModel
     this.name = animationName || ''
     if (animationName) {
-      const animation = this.mainModel.tools.animation.getAnimationByName(animationName)
+      const animation = this.mainModel.animationsManage.get(animationName)
       if (!animation)
         throw new Error('build error')
       this.animation = animation
@@ -52,84 +51,36 @@ class TaskImpl implements Task {
   update() {}
 }
 
-class Task1 extends TaskImpl implements Task {
+class Task1 extends TaskImpl {
   constructor(mainModel: MainModel) {
     super(mainModel, null)
   }
-
-  trigger() {
-    return super.trigger()
-  }
-
-  stop() {
-    return super.stop()
-  }
-
-  update() {
-    super.update()
-  }
 }
 
-class Task2 extends TaskImpl implements Task {
+class Task2 extends TaskImpl {
   baseWeight: number = 0.4
   moodRange: [number, number] = [50, 100]
 
   constructor(mainModel: MainModel) {
     super(mainModel, 'game_win')
   }
-
-  trigger() {
-    return super.trigger()
-  }
-
-  stop() {
-    super.stop()
-  }
-
-  update() {
-    super.update()
-  }
 }
 
-class Task3 extends TaskImpl implements Task {
+class Task3 extends TaskImpl {
   baseWeight: number = 0.3
   moodRange: [number, number] = [0, 50]
 
   constructor(mainModel: MainModel) {
     super(mainModel, 'game_lost')
   }
-
-  trigger() {
-    return super.trigger()
-  }
-
-  stop() {
-    super.stop()
-  }
-
-  update() {
-    super.update()
-  }
 }
 
-class Task4 extends TaskImpl implements Task {
+class Task4 extends TaskImpl {
   baseWeight: number = 0.6
   moodRange: [number, number] = [30, 100]
 
   constructor(mainModel: MainModel) {
     super(mainModel, 'picnic')
-  }
-
-  trigger() {
-    return super.trigger()
-  }
-
-  stop() {
-    super.stop()
-  }
-
-  update() {
-    super.update()
   }
 }
 
@@ -150,21 +101,13 @@ class Task5 extends TaskImpl implements Task {
     }
     return animation
   }
-
-  stop() {
-    super.stop()
-  }
-
-  update() {
-    super.update()
-  }
 }
 
 class RandomTask {
   private mainModel: MainModel
-  private lastTime = 0 // 上次渲染时间
-  private mood = 80 // 好感度
-  private actionTask: Task | null | undefined = null
+  private lastTime = 0
+  private mood = 80
+  private actionTask: Task | undefined
 
   constructor(mainModel: MainModel) {
     this.mainModel = mainModel
@@ -193,7 +136,6 @@ class RandomTask {
     this.lastTime = performance.now()
   }
 
-  // 每一帧执行
   update() {
     this.actionTask?.update()
 

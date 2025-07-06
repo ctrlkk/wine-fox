@@ -1,22 +1,20 @@
-// import { copy } from 'esbuild-plugin-copy'
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/index.ts'],
-  format: ['esm', 'cjs'],
+  entry: [
+    'src/index.ts',
+    'src/tools.ts',
+    'src/loader.ts',
+    'src/assets.ts',
+  ],
+  format: ['esm'],
   dts: true,
   clean: true,
   sourcemap: true,
   loader: {
     '.glb': 'dataurl',
-    '.gltf': 'file',
+    '.gltf': 'dataurl',
+    '.png': 'dataurl',
   },
-  esbuildPlugins: [
-    // copy({
-    //   assets: {
-    //     from: ['./src/assets/**/*'],
-    //     to: ['./assets'],
-    //   },
-    // }),
-  ],
+  esbuildPlugins: [],
 })
