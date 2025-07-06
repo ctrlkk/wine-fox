@@ -1,3 +1,4 @@
+import type { KanbanGirl } from '.'
 import * as THREE from 'three'
 import { AnimationManage } from './animation-manage'
 import { RandomTask } from './random-task'
@@ -33,11 +34,13 @@ class MainModel {
   rightHand: RightHand
   animationsManage: AnimationManage
   animations: Animations
+  render: KanbanGirl
 
   // 随机任务
   public randomTask: RandomTask
 
-  constructor(object3d: THREE.Object3D, animations: THREE.AnimationClip[]) {
+  constructor(render: KanbanGirl, object3d: THREE.Object3D, animations: THREE.AnimationClip[]) {
+    this.render = render
     this.object3d = object3d
     const head = object3d.getObjectByName('Head')
     const rightHandLocator = object3d.getObjectByName('RightHandLocator')
@@ -253,10 +256,31 @@ class Apple extends HoldObject {
 
   constructor(object: THREE.Object3D, mainModel: MainModel) {
     super(object, mainModel)
-
     const mainHandEat = mainModel.animationsManage.get('use_mainhand:eat')!
     const offHandEat = mainModel.animationsManage.get('use_offhand:eat')!
+    mainHandEat.clampWhenFinished = true
+    mainHandEat.setLoop(THREE.LoopOnce, 1)
+    offHandEat.clampWhenFinished = true
+    offHandEat.setLoop(THREE.LoopOnce, 1)
+    this.animations.eat = () => {
+      if (this.holdType === 'mainHand')
+        return mainHandEat
+      return offHandEat
+    }
+  }
+}
 
+class Bottle extends HoldObject {
+  public type = 'bottle'
+
+  constructor(object: THREE.Object3D, mainModel: MainModel) {
+    super(object, mainModel)
+    const mainHandEat = mainModel.animationsManage.get('use_mainhand:drink')!
+    const offHandEat = mainModel.animationsManage.get('use_offhand:drink')!
+    mainHandEat.clampWhenFinished = true
+    mainHandEat.setLoop(THREE.LoopOnce, 1)
+    offHandEat.clampWhenFinished = true
+    offHandEat.setLoop(THREE.LoopOnce, 1)
     this.animations.eat = () => {
       if (this.holdType === 'mainHand')
         return mainHandEat
@@ -267,6 +291,7 @@ class Apple extends HoldObject {
 
 export {
   Apple,
+  Bottle,
   Hand,
   Head,
   HoldObject,

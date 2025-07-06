@@ -23,7 +23,7 @@ class TaskImpl implements Task {
   mainModel: MainModel
   animation: AnimationAction | undefined
 
-  constructor(mainModel: MainModel, animationName: string | null) {
+  constructor(mainModel: MainModel, animationName?: string) {
     this.mainModel = mainModel
     this.name = animationName || ''
     if (animationName) {
@@ -53,7 +53,7 @@ class TaskImpl implements Task {
 
 class Task1 extends TaskImpl {
   constructor(mainModel: MainModel) {
-    super(mainModel, null)
+    super(mainModel)
   }
 }
 
@@ -103,6 +103,55 @@ class Task5 extends TaskImpl implements Task {
   }
 }
 
+class Task6 extends TaskImpl {
+  baseWeight: number = 0.5
+  moodRange: [number, number] = [0, 100]
+
+  constructor(mainModel: MainModel) {
+    super(mainModel)
+  }
+
+  trigger(): AnimationAction | undefined {
+    const apple = this.mainModel.render.models.apple
+    if (!apple)
+      return
+    this.mainModel.rightHand.add(apple)
+    this.animation = apple.animations.eat().fadeIn(0.3).play()
+    waitAnimationEnd(this.animation).then(() => {
+      apple.object3d.visible = false
+      this.animation?.fadeOut(0.3)
+      waitFadeEnd(this.animation!, 0).then(() => {
+        this.mainModel.rightHand.remove(apple)
+      })
+    })
+    return this.animation
+  }
+}
+
+class Task7 extends TaskImpl {
+  baseWeight: number = 0.5
+  moodRange: [number, number] = [0, 100]
+
+  constructor(mainModel: MainModel) {
+    super(mainModel)
+  }
+
+  trigger(): AnimationAction | undefined {
+    const bottle = this.mainModel.render.models.bottle
+    if (!bottle)
+      return
+    this.mainModel.rightHand.add(bottle)
+    this.animation = bottle.animations.eat().fadeIn(0.3).play()
+    waitAnimationEnd(this.animation).then(() => {
+      this.animation?.fadeOut(0.3)
+      waitFadeEnd(this.animation!, 0).then(() => {
+        this.mainModel.rightHand.remove(bottle)
+      })
+    })
+    return this.animation
+  }
+}
+
 class RandomTask {
   private mainModel: MainModel
   private lastTime = 0
@@ -121,6 +170,8 @@ class RandomTask {
     tasks.push(new Task3(mainModel))
     tasks.push(new Task4(mainModel))
     tasks.push(new Task5(mainModel))
+    tasks.push(new Task6(mainModel))
+    tasks.push(new Task7(mainModel))
     return tasks
   }
 

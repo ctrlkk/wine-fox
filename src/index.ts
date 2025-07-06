@@ -1,21 +1,16 @@
+import type { Assets } from './assets'
 import { BloomEffect, ColorDepthEffect, EffectComposer, EffectPass, FXAAEffect, GodRaysEffect, RenderPass } from 'postprocessing'
 import * as THREE from 'three'
 import { InteractionManager } from 'three.interactive'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { Apple, MainModel, Torch } from './model-object'
-
+import { Apple, Bottle, MainModel, Torch } from './model-object'
 import { createModelFromImage, getScreenPositionAndSize, loader } from './tools'
 
 export interface Models {
   apple?: Apple
   wineFox?: MainModel
   torch?: Torch
-}
-
-interface Assets {
-  apple: string
-  wineFox: string
-  torch: string
+  bottle?: Bottle
 }
 
 export class KanbanGirl {
@@ -26,9 +21,10 @@ export class KanbanGirl {
   private composer: EffectComposer | undefined
   private interactionManager: InteractionManager | undefined
   private controls: OrbitControls | undefined
-  private mainModel: MainModel | undefined
-  private models: Models = {}
   private ambient: THREE.AmbientLight
+
+  public mainModel: MainModel | undefined
+  public models: Models = {}
 
   constructor(container: HTMLDivElement) {
     this.container = container
@@ -64,11 +60,16 @@ export class KanbanGirl {
     this.resize()
   }
 
+  /**
+   * 加载模型资源
+   * @param assets 资源路径对象
+   * @returns Promise
+   */
   async load(assets: Assets) {
-    Promise.all([loader.loadAsync(assets.wineFox), createModelFromImage(assets.apple), loader.loadAsync(assets.torch)])
-      .then(([gltf1, gltf2, gltf3]) => {
-        gltf1.scene.rotateY(Math.PI)
-        this.mainModel = new MainModel(gltf1.scene, gltf1.animations)
+    return Promise.all([loader.loadAsync(assets.wineFox), loader.loadAsync(assets.torch), createModelFromImage(assets.apple), createModelFromImage(assets.bottle)])
+      .then(([gltf, ...args]) => {
+        gltf.scene.rotateY(Math.PI)
+        this.mainModel = new MainModel(this, gltf.scene, gltf.animations)
         this.mainModel.object3d.scale.set(20, 20, 20)
         const box = new THREE.Box3().setFromObject(this.mainModel.object3d)
         const size = box.getSize(new THREE.Vector3())
@@ -76,19 +77,12 @@ export class KanbanGirl {
         this.scene.add(this.mainModel.object3d)
         this.interactionManager?.add(this.mainModel.object3d)
         this.mainModel.object3d.scale.set(20, 20, 20)
-
-        gltf2.scale.set(0.03, 0.03, 0.03)
-        gltf2.rotateX(Math.PI * -0.5)
-        gltf2.position.setZ(-0.2)
-        const apple = new Apple(gltf2, this.mainModel!)
-        this.mainModel?.leftHand.add(apple)
-        // apple.animations.eat().play()
-
         this.models.wineFox = this.mainModel
-        this.models.apple = apple
-
-        gltf3.scene.rotateX(Math.PI * 1.5)
-        this.models.torch = new Torch(gltf3.scene, this.mainModel)
+        return args
+      })
+      .then(([gltf, ...args]) => {
+        gltf.scene.rotateX(Math.PI * 1.5)
+        this.models.torch = new Torch(gltf.scene, this.mainModel!)
         const light = new THREE.PointLight(0xFFA500, 1000)
         this.models.torch.object3d.getObjectByName('fire')?.add(light)
         this.models.torch.object3d.getObjectByName('fire')?.traverse((child: THREE.Object3D<THREE.Object3DEventMap>) => {
@@ -104,6 +98,23 @@ export class KanbanGirl {
             this.composer?.addPass(effect)
           }
         })
+        return args
+      })
+      .then(([object, ...args]) => {
+        object.scale.set(0.03, 0.03, 0.03)
+        object.rotateX(Math.PI * -0.5)
+        object.position.setZ(-0.2)
+        const apple = new Apple(object, this.mainModel!)
+        this.models.apple = apple
+        return args
+      })
+      .then(([object, ...args]) => {
+        object.scale.set(0.03, 0.03, 0.03)
+        object.rotateX(Math.PI * -0.5)
+        object.position.setZ(-0.2)
+        const bottle = new Bottle(object, this.mainModel!)
+        this.models.bottle = bottle
+        return args
       })
   }
 
