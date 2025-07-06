@@ -82,10 +82,11 @@ export class KanbanGirl {
       })
       .then(([gltf, ...args]) => {
         gltf.scene.rotateX(Math.PI * 1.5)
-        this.models.torch = new Torch(gltf.scene, this.mainModel!)
+        const torch = new Torch(gltf.scene, this.mainModel!)
+        this.models.torch = torch
         const light = new THREE.PointLight(0xFFA500, 1000)
-        this.models.torch.object3d.getObjectByName('fire')?.add(light)
-        this.models.torch.object3d.getObjectByName('fire')?.traverse((child: THREE.Object3D<THREE.Object3DEventMap>) => {
+        torch.object3d.getObjectByName('fire')?.add(light)
+        torch.object3d.getObjectByName('fire')?.traverse((child: THREE.Object3D<THREE.Object3DEventMap>) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh
             const material = mesh.material as THREE.MeshStandardMaterial
@@ -95,7 +96,7 @@ export class KanbanGirl {
               this.camera,
               new GodRaysEffect(this.camera, mesh),
             )
-            this.composer?.addPass(effect)
+            torch.effect = effect
           }
         })
         return args
@@ -169,12 +170,21 @@ export class KanbanGirl {
   setTheme(theme: 'dark' | 'light' = 'light') {
     switch (theme) {
       case 'dark': {
-        this.ambient.intensity = 0
-        this.mainModel?.leftHand.add(this.models.torch!)
+        this.ambient.intensity = 0.1
+        if (this.models.torch) {
+          if (this.models.torch.effect)
+            this.composer?.addPass(this.models.torch.effect)
+          this.mainModel?.leftHand.add(this.models.torch)
+        }
         break
       }
       case 'light': {
         this.ambient.intensity = 2
+        if (this.models.torch) {
+          if (this.models.torch.effect)
+            this.composer?.removePass(this.models.torch.effect)
+          this.mainModel?.leftHand.remove(this.models.torch)
+        }
         break
       }
     }

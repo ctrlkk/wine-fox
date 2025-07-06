@@ -1,3 +1,4 @@
+import type { EffectPass } from 'postprocessing'
 import type { KanbanGirl } from '.'
 import * as THREE from 'three'
 import { AnimationManage } from './animation-manage'
@@ -245,6 +246,7 @@ class Sword extends HoldObject<HoldObjectAnimations> {
 
 class Torch extends HoldObject {
   public type = 'torch'
+  public effect?: EffectPass
 
   constructor(object: THREE.Object3D, mainModel: MainModel) {
     super(object, mainModel, 'axe')
