@@ -53,6 +53,7 @@ export class KanbanGirl {
 
     this.interactionManager = new InteractionManager(this.renderer, this.camera, this.container)
     this.controls = new OrbitControls(this.camera, this.container)
+    this.controls.dispose()
 
     this.ambient = new THREE.AmbientLight(0xFFFFFF)
     this.scene.add(this.ambient)
